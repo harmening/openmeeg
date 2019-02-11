@@ -1,29 +1,31 @@
 cmake_minimum_required (VERSION 3.9)
 project (OpenMEEG VERSION 2.4.9999 LANGUAGES C CXX)
 
-###########
-# SET RPATH correct
-# use, i.e. don't skip the full RPATH for the build tree
-SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
-# when building, don't use the install RPATH already
-# (but later on when installing)
-SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-# the RPATH to be used when installing
-SET(CMAKE_INSTALL_RPATH "")
-# don't add the automatically determined parts of the RPATH
-# which point to directories outside the build tree to the install RPATH
-SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
+if(APPLE)
+  # SET RPATH correct
+  # use, i.e. don't skip the full RPATH for the build tree
+  SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
+  # when building, don't use the install RPATH already
+  # (but later on when installing)
+  SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+  # the RPATH to be used when installing
+  SET(CMAKE_INSTALL_RPATH "")
+  # don't add the automatically determined parts of the RPATH
+  # which point to directories outside the build tree to the install RPATH
+  SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
 
-set(CMAKE_C_COMPILER "/usr/local/Cellar/llvm/7.0.1/bin/clang")
-set(CMAKE_CXX_COMPILER "/usr/local/Cellar/llvm/7.0.1/bin/clang++")
-set(OPENMP_LIBRARIES "/usr/local/Cellar/llvm/7.0.1/lib")
-set(OPENMP_INCLUDES "/usr/local/Cellar/llvm/7.0.1/include")
+  set(CMAKE_C_COMPILER "/usr/local/Cellar/llvm/7.0.1/bin/clang")
+  set(CMAKE_CXX_COMPILER "/usr/local/Cellar/llvm/7.0.1/bin/clang++")
+  set(OPENMP_LIBRARIES "/usr/local/Cellar/llvm/7.0.1/lib")
+  set(OPENMP_INCLUDES "/usr/local/Cellar/llvm/7.0.1/include")
 
-OPTION (USE_OpenMP "Use OpenMP to enamble <omp.h>" ON)
+  OPTION (USE_OpenMP "Use OpenMP to enamble <omp.h>" ON)
 
-# use python3.6 instead of 2.7
-#find_package( PythonInterp 3.6 REQUIRED )
-#find_package( PythonLibs 3.6 REQUIRED )
+  # use python3.6 instead of 2.7
+  #find_package( PythonInterp 3.6 REQUIRED )
+  #find_package( PythonLibs 3.6 REQUIRED )
+endif()
+
 
 # Find OpenMP
 if(APPLE AND USE_OpenMP)
@@ -49,7 +51,7 @@ if(USE_OpenMP)
   find_package(OpenMP REQUIRED)
 endif(USE_OpenMP)
 
-if (OPENMP_FOUND)
+if(OPENMP_FOUND)
     include_directories("${OPENMP_INCLUDES}")
     link_directories("${OPENMP_LIBRARIES}")
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -57,7 +59,7 @@ if (OPENMP_FOUND)
     # set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif(OPENMP_FOUND)
 
-###########
+
 set(CMAKE_CXX_STANDARD 11)  # use c++11
 
 set(OpenMEEG_HEADER_INSTALLDIR include) # XXX I don't know why this should be here
