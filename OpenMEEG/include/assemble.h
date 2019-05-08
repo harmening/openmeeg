@@ -67,6 +67,13 @@ namespace OpenMEEG {
                       const bool adapt_rhs = true, const std::string& domain_name = "");
         virtual ~DipSourceMat () {};
     };
+		
+    class OPENMEEG_EXPORT MonopSourceMat : public virtual Matrix {
+    public:
+        MonopSourceMat(const Geometry& geo, const Matrix& dipoles, const unsigned gauss_order = 3,
+            const bool adapt_rhs = true, const std::string& domain_name = "");
+        virtual ~MonopSourceMat() {};
+    };
 
     class OPENMEEG_EXPORT EITSourceMat: public virtual Matrix {
     public:
