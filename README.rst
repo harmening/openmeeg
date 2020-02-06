@@ -1,4 +1,4 @@
-|Travis|_ |AppVeyor|_ |CodeCov|_ |condaVersion|_ |gitter|_
+|Travis|_ |AppVeyor|_ |lgtm|_ |CodeCov|_ |condaVersion|_ |gitter|_
 
 .. |Travis| image:: https://api.travis-ci.org/openmeeg/openmeeg.svg?branch=master
 .. _Travis: https://travis-ci.org/openmeeg/openmeeg/branches
@@ -14,6 +14,9 @@
 
 .. |gitter| image:: https://badges.gitter.im/openmeeg/openmeeg.svg
 .. _gitter: https://gitter.im/openmeeg/openmeeg
+
+.. |lgtm| image:: https://img.shields.io/lgtm/grade/cpp/g/openmeeg/openmeeg.svg?logo=lgtm&logoWidth=18
+.. _lgtm: https://lgtm.com/projects/g/openmeeg/openmeeg/context:cpp
 
 OpenMEEG: forward problems solver in the field of EEG and MEG
 =============================================================
@@ -76,11 +79,11 @@ Unix (Linux & Mac OS X)
 
 On Debian/Ubuntu you will need to install the dependencies with::
 
-    sudo apt-get install gcc g++ make cmake libopenblas-dev liblapacke-dev libhdf5-serial-dev libmatio-dev
+    sudo apt-get install gcc g++ make cmake libopenblas-dev liblapacke-dev libmatio-dev libmatio4
 
 *optionally*::
 
-    sudo apt-get install python-dev python-numpy swig libvtk6-dev doxygen graphviz libcgal-dev
+    sudo apt-get install python3-numpy swig libvtk6-dev doxygen graphviz libcgal-dev
 
 On Fedora and Centos::
 
@@ -88,15 +91,7 @@ On Fedora and Centos::
 
 *optionally*::
 
-    sudo yum install python-devel python2-numpy swig vtk-devel doxygen cgal-devel
-
-On Mac OS X, we recommend you install it with `Homebrew <http://brew.sh/>`_ using::
-
-    $ brew install https://raw.githubusercontent.com/openmeeg/openmeeg/master/openmeeg.rb
-
-To install with Homebrew the current development version use::
-
-    $ brew install https://raw.githubusercontent.com/openmeeg/openmeeg/master/openmeeg.rb --devel
+    sudo yum install python3-numpy swig vtk-devel doxygen cgal-devel
 
 To install OpenMEEG from source in a terminal::
 
@@ -111,9 +106,14 @@ then::
     $ make
 
 
+**Note for Python users**:
+
+- To use Python bindings you will need a recent version of CMake >= 3.16.2
+- and a recent version of Swig >= 4.0
+
 You will need to define more CMake variables if you want the support for:
 
-- Python wrapping, add "-DENABLE_PYTHON=ON".
+- Python wrapping, add "-DENABLE_PYTHON=ON" (Python >= 3.6 is required)
 
 - VTK file format, add "-DUSE_VTK=ON".
 

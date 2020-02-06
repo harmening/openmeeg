@@ -39,49 +39,37 @@ knowledge of the CeCILL-B license and that you accept its terms.
 
 #include "geometry.h"
 #include "matrix.h"
-#include "options.h"
+#include "commandline.h"
 
-using namespace std;
 using namespace OpenMEEG;
 
-int main( int argc, char **argv) {
+int
+main(int argc,char* argv[]) {
 
     print_version(argv[0]);
 
-    command_usage("Convert a single VTK/VTP into meshes.");
-    const char * input;
-    const char * output;
-    input  = command_option("-i", (const char *) NULL, "Input VTK/VTP file");
-    output = command_option("-o", (const char *) NULL, "Output mesh base name");
+    const CommandLine cmd(argc,argv,"Convert a single VTK/VTP into meshes.");
+    const std::string& input  = cmd.option("-i",std::string(),"Input VTK/VTP file");
+    const std::string& output = cmd.option("-o",std::string(),"Output mesh base name");
 
-    if ( command_option("-h", (const char *)0, 0) ) {
+    if (cmd.help_mode())
         return 0;
-    }
 
-    if ( !input || !output ) {
-        std::cout << "Not enough arguments, try the -h option" << std::endl;
+    if (input=="" || output=="") {
+        std::cout << "Missing arguments, try the -h option" << std::endl;
         return 1;
     }
 
-    Geometry geo;
+    Geometry geom(input);
 
-    geo.load_vtp(input);
+    const std::string::size_type idx = output.rfind('.');
+    const std::string& extension = (idx!=std::string::npos) ? output.substr(idx+1) : std::string("");
+    const std::string& basename = output.substr(0,idx);
 
-    std::string::size_type idx;
-    std::string extension;
-    std::string output_string(output);
+    for (const auto& mesh : geom.meshes())
+        mesh.save(basename+mesh.name()+'.'+extension);
 
-    idx = output_string.rfind('.');
-
-    if ( idx != std::string::npos ) {
-        extension = output_string.substr(idx+1);
-    } else {
-        extension = "";
-    }
-
-    for ( Geometry::const_iterator mit = geo.begin(); mit != geo.end(); mit++) {
-        mit->save(output_string.substr(0, idx) + mit->name() + '.' + extension);
-    }
+    geom.save(basename+".geom");
 
     return 0;
 }

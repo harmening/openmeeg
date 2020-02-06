@@ -37,31 +37,27 @@ The fact that you are presently reading this means that you have had
 knowledge of the CeCILL-B license and that you accept its terms.
 */
 
-#define _USE_MATH_DEFINES
-#include <cmath>
-
 #include <operators.h>
-#include <om_utils.h>
+#include <progressbar.h>
+#include <constants.h>
 
 namespace OpenMEEG {
 
-    // geo = geometry 
-    // mat = storage for Ferguson Matrix
-    // pts = where the magnetic field is to be computed
-    // n   = numbers of places where magnetic field is to be computed
-    void assemble_ferguson(const Geometry& geo, Matrix& mat, const Matrix& pts)
-    {
-        unsigned miit = 0; // for progressbar: mesh index iterator
+    // geom = geometry
+    // mat  = storage for Ferguson Matrix
+    // pts  = where the magnetic field is to be computed
+
+    void assemble_ferguson(const Geometry& geom,Matrix& mat,const Matrix& pts) {
+
         // Computation of blocks of Ferguson's Matrix
-        for ( Geometry::const_iterator mit = geo.begin(); mit != geo.end(); ++mit, ++miit) {
-            unsigned offsetI = 0;
-            unsigned n = pts.nlin();
-            double coeff = geo.sigma_diff(*mit)*MU0/(4.*M_PI);
-            for ( unsigned i = 0; i < n; ++i) {
-                PROGRESSBAR(miit*n+i, geo.nb_meshes()*n);
-                Vect3 p(pts(i, 0), pts(i, 1), pts(i, 2));
-                operatorFerguson(p, *mit, mat, offsetI, coeff);
-                offsetI += 3;
+
+        const unsigned n = pts.nlin();
+        ProgressBar pb(geom.meshes().size()*n);
+        for (const auto& mesh : geom.meshes()) {
+            const double coeff = MagFactor*geom.conductivity_difference(mesh);
+            for (unsigned i=0,index=0; i<n; ++i,index+=3,++pb) {
+                const Vect3 p(pts(i,0),pts(i,1),pts(i,2));
+                operatorFerguson(p,mesh,mat,index,coeff);
             }
         }
     }

@@ -42,9 +42,18 @@ knowledge of the CeCILL-B license and that you accept its terms.
 #include <cstdlib>
 #include <cmath>
 
+#ifdef HAVE_SHARED_PTR_ARRAY_SUPPORT
+#include <memory>
+template <typename T>
+using SharedPtr = std::shared_ptr<T>;
+#else
+#include <boost/shared_ptr.hpp>
+template <typename T>
+using SharedPtr = boost::shared_ptr<T>;
+#endif
+
 #include "OpenMEEGMathsConfig.h"
 #include <OMassert.H>
-#include "RC.H"
 
 namespace OpenMEEG {
 
@@ -74,14 +83,6 @@ namespace OpenMEEG {
 
         virtual ~LinOpInfo() {};
 
-        LinOpInfo& operator=(const LinOpInfo& l) {
-            num_lines = l.num_lines;
-            num_cols  = l.num_cols;
-            storage   = l.storage;
-            dim       = l.dim;
-            return *this;
-        }
-        
         size_t  nlin() const { return num_lines; }
         size_t& nlin()       { return num_lines; }
 
@@ -114,42 +115,22 @@ namespace OpenMEEG {
         LinOp() { }
         LinOp(const size_t m,const size_t n,const StorageType st,const Dimension d): base(m,n,st,d) { }
 
-        LinOp& operator=(const LinOp& l) {
-            base::operator=(l);
-            return *this;
-        }
-        
         virtual size_t size() const = 0;
         virtual void   info() const = 0;
     };
 
     typedef enum { DEEP_COPY } DeepCopy;
 
-    struct OPENMEEGMATHS_EXPORT LinOpValue: public utils::RCObject {
-        double *data;
+    struct OPENMEEGMATHS_EXPORT LinOpValue: public SharedPtr<double[]> {
+        typedef SharedPtr<double[]> base;
 
-        LinOpValue(): data(0) { }
+        LinOpValue(): base(0) { }
+        LinOpValue(const size_t n): base(new double[n]) { }
+        LinOpValue(const size_t n,const double* initval): LinOpValue(n) { std::copy(initval,initval+n,&(*this)[0]); }
+        LinOpValue(const size_t n,const LinOpValue& v):   LinOpValue(n,&(v[0])) { }
 
-        LinOpValue(const size_t n) {
-            try {
-                this->data = new double[n];
-            }
-            catch (std::bad_alloc&) {
-                std::cerr << "Error memory allocation failed... " << std::endl;
-                exit(1);
-            }
-        }
+        ~LinOpValue() { }
 
-        LinOpValue(const size_t n,const double* initval) { init(n,initval); }
-        LinOpValue(const size_t n,const LinOpValue& v)   { init(n,v.data);  }
-
-        void init(const size_t n,const double* initval) {
-            data = new double[n];
-            std::copy(initval,initval+n,data);
-        }
-
-        ~LinOpValue() { delete[] data; }
-
-        bool empty() const { return data==0; }
+        bool empty() const { return static_cast<bool>(*this); }
     };
 }

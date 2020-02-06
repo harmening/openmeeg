@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.9)
+cmake_minimum_required (VERSION 3.12)
 project (OpenMEEG VERSION 2.4.9999 LANGUAGES C CXX)
 
 if(APPLE)
@@ -60,7 +60,8 @@ if(OPENMP_FOUND)
 endif(OPENMP_FOUND)
 
 
-set(CMAKE_CXX_STANDARD 11)  # use c++11
+#set(CMAKE_CXX_STANDARD 11)  # use c++11
+set(CMAKE_CXX_STANDARD 17)  # use c++17
 
 set(OpenMEEG_HEADER_INSTALLDIR include) # XXX I don't know why this should be here
 
@@ -68,36 +69,31 @@ set(OpenMEEG_HEADER_INSTALLDIR include) # XXX I don't know why this should be he
 list(APPEND CMAKE_MODULE_PATH
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/utils
-    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FortranCInterface
     ${CMAKE_MODULE_PATH}
 )
 
-################
 # OpenMEEG Configuration and needed things
-################
+
 include(GenerateExportHeader)
-include(cmake/CompilerOptions.cmake)
-include(cmake/options.cmake)
-include(cmake/thirdParties.cmake)
-include(cmake/install.cmake)  # install setup (do it before adding targets)
-include(cmake/Uninstall.cmake)  # install setup (do it before adding targets)
+include(CompilerOptions)
+include(options)
+include(thirdParties)
+include(install)  # install setup (do it before adding targets)
+include(Uninstall)  # install setup (do it before adding targets)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/OpenMEEGConfigure.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/OpenMEEGConfigure.h)
 
-################
 # OpenMEEG stuff
-################
+
 add_subdirectory(OpenMEEGMaths)
 add_subdirectory(OpenMEEG)
 add_subdirectory(apps)
 add_subdirectory(documentation)
 add_subdirectory(wrapping)
+add_subdirectory(tests)
 
-################
 # OpenMEEG Export
-################
-include(cmake/Packaging.cmake)
 
 # XXX: Hot fix to be able to ship win binaries when OpenMP is active
 #
@@ -112,3 +108,4 @@ if (WIN32 AND OPENMP_FOUND AND VCOMP_WORKAROUND)
 endif()
 
 
+include(cmake/Packaging.cmake)

@@ -1,7 +1,6 @@
 sudo: true
 
-language:
-  - cpp
+language: cpp
 
 cache:
   ccache: true
@@ -10,63 +9,106 @@ cache:
 
 matrix:
   include:
-    - os: linux  # shipping linux
+
+    - name: (shipping) MKL + minimal dep using conda
+      os: linux
+      dist: bionic
       env:
         - BACKEND=Intel10_64lp
         - BUILD_STATIC=ON
         - BUILD_PACKAGE=ON
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
 
-    - os: linux  # shipping apt-get
+    - name: (analyse) openblas, python, vtk, gcc-7, apt-get dependencies
+      os: linux
+      dist: bionic
       env:
         - BACKEND=OpenBLAS
         - USE_VTK=ON
         - ENABLE_PYTHON=ON
+        - CMAKE_VERSION=3.16.2  # required to find python 3
+        - SWIG_VERSION=4.0.1
         - ANALYSE=ON
         - ENABLE_COVERAGE=ON
         - BUILD_DOCUMENTATION=ON
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
       addons:
-        sources:
-          - ubuntu-toolchain-r-test
         apt:
+          sources:
+            - ubuntu-toolchain-r-test
           packages:
             - libopenblas-dev
             - liblapacke-dev # XXX: If lapacke is missing, cmake does not break at generation but at compilation.
-            - swig
-            - python-numpy
+            - python3-numpy
             - doxygen
             - graphviz
+            - libmatio4
+            - libmatio-dev
+            - libvtk6-dev
+            - lcov
 
-    - os: osx  # shipping mac
-      osx_image: xcode8.3
+    - name: (shipping) MKL + minimal dep using brew
+      os: osx
+      osx_image: xcode9.4
       env:
         - BACKEND=Intel10_64lp
         - BUILD_STATIC=ON
         - BUILD_PACKAGE=ON
+      addons:
+        homebrew:
+          update: true
+          packages:
+            - cmake
+            - hdf5
+            - libmatio
+            - boost
 
-    - os: osx  # shipping brew
+    - name: openblas, vtk, full dep using brew
+      os: osx
+      python: "3.7"
       env:
         - BACKEND=OpenBLAS
-      # - USE_GCC=ON  # XXX : vtk does not work with GCC
-      # - USE_BREW_LLVM=ON  # XXX: To have OpenMP but segfaults...
-      # - USE_VTK=ON # XXX: vtk is currently broken in brew
+        - USE_VTK=ON
+        - ENABLE_PYTHON=ON
+        # - USE_GCC=ON  # XXX : vtk does not work with GCC
+        # - USE_BREW_LLVM=ON  # XXX: To have OpenMP but segfaults...
+      addons:
+        homebrew:
+          update: true
+          packages:
+            - cmake
+            - gcc
+            - hdf5
+            - libmatio
+            - boost
+            - openblas
+            - vtk
+            - numpy
+            - swig
 
-    - os: osx  # Static analysis using clang-analyzer
+    - name: (analyse) Static analysis using clang-analyzer
+      os: osx
       env:
         - ENABLE_COVERAGE=ON
         - BACKEND=Apple
         - ANALYSE=ON
+      addons:
+        homebrew:
+          update: true
+          packages:
+            - cmake
+            - gcc
+            - hdf5
+            - libmatio
+            - boost
 
 before_install:
-  - |
-    if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
-      # FindMKL.cmake uses mkl_link_tool, which is a 32bits application !
-      sudo dpkg --add-architecture i386
-      sudo apt-get update
-      sudo apt-get install -y libc6:i386 libncurses5:i386 libstdc++6:i386
-      sudo apt-get install -y lcov
-      sudo apt-get install binutils-2.26
-      export PATH=/usr/lib/binutils-2.26/bin:${PATH}
+  - DEPS_DIR="${TRAVIS_BUILD_DIR}/deps"
+  - mkdir ${DEPS_DIR} && cd ${DEPS_DIR}
+  - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
+      brew link --overwrite python;
     fi
+  - eval "${MATRIX_EVAL}"
 
   # Travis machines have 2 cores
   - JOBS=2
@@ -74,45 +116,60 @@ before_install:
   ############################################################################
   # Handle caching of downloaded files
   ############################################################################
+
   - export DL_DIR=$HOME/downloads
   - curl -fsSkL https://raw.githubusercontent.com/openmeeg/ci-utils/master/travis/travis_tools.sh > x.sh && source ./x.sh
 
   ############################################################################
-  # Install a recent CMake
+  # Install MKL if necessary
   ############################################################################
-  - CMAKE_VERSION=3.10.1
-  - curl -fsSkL https://raw.githubusercontent.com/openmeeg/ci-utils/master/travis/install_cmake.sh > x.sh && source ./x.sh
 
-  ############################################################################
-  # Install MKL (if necessary)
-  ############################################################################
   - |
     if [[ "${BACKEND}" == *"Intel"* ]]; then
       curl -fsSkL https://raw.githubusercontent.com/openmeeg/ci-utils/master/travis/install_mkl.sh > install_mkl.sh && source ./install_mkl.sh
     fi
 
   ############################################################################
-  # Install Matio
+  # Install Matio (using conda for shipping in Linux)
   ############################################################################
-  - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
-        rm -rf /usr/local/include/c++;
-        brew install hdf5 libmatio;
-        if [[ "${USE_VTK}" == "ON" ]]; then
-            brew install vtk --without-python@2;
-        fi
-    else
-        if [[ "${BUILD_PACKAGE}" == "ON" ]]; then
-            git clone https://github.com/astropy/ci-helpers.git;
-            source ci-helpers/travis/setup_conda.sh;
-            conda install -c massich libmatio;
-        else
-            sudo apt-get install -y libmatio2 libmatio-dev libvtk5-dev;
-        fi
+
+  - |
+    if [[ "${TRAVIS_OS_NAME}" == "linux" && "${BUILD_PACKAGE}" == "ON" ]]; then
+        git clone https://github.com/astropy/ci-helpers.git;
+        source ci-helpers/travis/setup_conda.sh;
+        conda install -c massich libmatio;
+    fi
+
+  ############################################################################
+  # Install cmake (Bionic contains a cmake 3.10
+  ############################################################################
+
+  - |
+    if [[ "${TRAVIS_OS_NAME}" == "linux" && "${ENABLE_PYTHON}" == "ON" ]]; then
+      script=install_cmake.sh
+      curl -fsSkL https://raw.githubusercontent.com/openmeeg/ci-utils/master/travis/${script} > ${script} && source ./${script}
+    fi
+
+  ############################################################################
+  # Install Swig 4.0 (Bionic contains a swig 3.0 which has bugs in our context)
+  ############################################################################
+
+  - |
+    if [[ "${TRAVIS_OS_NAME}" == "linux" && "${ENABLE_PYTHON}" == "ON" ]]; then
+      script=install-swig.sh
+      curl -fsSkL https://raw.githubusercontent.com/openmeeg/ci-utils/master/travis/${script} > ${script} && source ./${script}
+    fi
+
+  - |
+    if [[ "${TRAVIS_OS_NAME}" == "linux" && "${ENABLE_PYTHON}" == "ON" ]]; then
+      python3 --version
+      python3 -c "import numpy; print(numpy.version.version)"
     fi
 
   ############################################################################
   # Install scan-build clang analyser
   ############################################################################
+
   - |
     export SCAN_BUILD=""
     if [[ "${ANALYSE}" == "ON" ]]; then
@@ -135,25 +192,18 @@ before_install:
   ############################################################################
   # Install brew llvm
   ############################################################################
+
   - |
     if [[ "${USE_BREW_LLVM}" == "ON" ]]; then
         brew install llvm;
+        BREW_PREFIX=$(brew --prefix)
         export OMP_NUM_THREADS=4;
-        export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib";
-        export DYLD_LIBRARY_PATH="/usr/local/opt/llvm/lib:$DYLD_LIBRARY_PATH";
-        export CC="/usr/local/opt/llvm/bin/clang";
-        export CXX="/usr/local/opt/llvm/bin/clang++";
-        export CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS";
-        export CFLAGS="-I/usr/local/opt/llvm/include $CFLAGS";
-    fi
-
-  ############################################################################
-  # Install OpenBLAS
-  ############################################################################
-  - |
-    if [[ "${TRAVIS_OS_NAME}" == "osx" && "${BACKEND}" == "OpenBLAS" ]]; then
-        brew install openblas;
-        brew link openblas --force;
+        export LDFLAGS="-L${BREW_PREFIX}/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib";
+        export DYLD_LIBRARY_PATH="${BREW_PREFIX}/opt/llvm/lib:$DYLD_LIBRARY_PATH";
+        export CC="${BREW_PREFIX}/opt/llvm/bin/clang";
+        export CXX="${BREW_PREFIX}/opt/llvm/bin/clang++";
+        export CPPFLAGS="-I${BREW_PREFIX}/opt/llvm/include $CPPFLAGS";
+        export CFLAGS="-I${BREW_PREFIX}/opt/llvm/include $CFLAGS";
     fi
 
 script:
@@ -175,7 +225,7 @@ script:
     fi
   - |
     if [[ "${CONFIGURATION}" == "Release" ]] && [[ "${ANALYSE}" != "ON" ]]; then
-      export CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_BUILD_TYPE=RELEASE"
+      export CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_BUILD_TYPE=Release"
     fi
   - |
     if [[ "${USE_VTK}" == "ON" ]]; then
@@ -189,12 +239,10 @@ script:
     if [[ "${TRAVIS_OS_NAME}" == "osx" && "${USE_GCC}" == "ON" ]]; then
       export CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_C_COMPILER=/usr/local/bin/gcc-7 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++-7"
     fi
-  - if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then echo $LD_LIBRARY_PATH; fi
-  - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then echo $DYLD_LIBRARY_PATH; fi
   - echo "cmake .. ${CMAKE_OPTIONS}"
   - cmake .. ${CMAKE_OPTIONS}
   - make -j ${JOBS}
-  - ctest -v .
+  - CTEST_OUTPUT_ON_FAILURE=1 ctest .
   - |
     if [[ "${BUILD_PACKAGE}" == "ON" ]]; then
       cpack -G TGZ .
@@ -224,8 +272,6 @@ after_success:
       MESSAGE="[av skip] Push from openmeeg $(date)"
       git clone git://${GH_REPO}
       cd ${REPO}
-      # git config user.email ${EMAIL}
-      # git config user.name ${USER}
       git config user.email "openmeeg@openmeeg.org"
       git config user.name "openmeeg"
       function gitpush() {
@@ -255,7 +301,6 @@ env:
     - secure: NwGYiI9vDCLsIN+uAJRPlUV9g4RraaHfNiJRGBmsc8kOaPvBL2fb3Mia6nOfkfcaVOmkEPhWeAOW8XKHqVj6982SBQrbnS/xfU/EHiDJaq7YVBRfkCn4/9yswyhCxvrS97JagIgnEjlhbIV9VLZ19A/e2fhWEzGbJabLyZ0ZNBc=
     - secure: ZXoAGZAYFC/kPwiX+TEpNX+rh2zVrVIw6BDdd/Qt1SiBB3+BZWwosqh+Wv1mLpjce7IAOXO42rg/OUwfPMl2egjFHth8OU827dyfYC0yFsgfN6myWD+HK+U6/3i+fp5WknWOhXzzFc72CgBwYNCnrIKNJ5LUMESUyew+vIgo5p0=
     - CONFIGURATION=Release
-    - PYTHON_VERSION=3.6
     - USER="openmeeg"
     - REPO="openmeeg_packages"
     - FILES="README.md"

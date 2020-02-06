@@ -54,62 +54,58 @@ namespace OpenMEEG {
     class SymMatrix;
     class Vector;
 
-    /** \brief  Matrix class
+    /// \brief  Matrix class
+    /// Matrix class
 
-        Matrix class
-    **/
     class OPENMEEGMATHS_EXPORT Matrix: public LinOp {
     protected:
 
         friend class Vector;
 
-        utils::RCPtr<LinOpValue> value;
+        LinOpValue value;
 
         explicit Matrix(const Matrix& A,const size_t M): LinOp(A.nlin(),M,FULL,2),value(A.value) { }
 
     public:
 
         Matrix(): LinOp(0,0,FULL,2),value() { }
-        Matrix(const char* fname): LinOp(0,0,FULL,2),value() { this->load(fname); }
-        Matrix(const size_t M,const size_t N): LinOp(M,N,FULL,2),value(new LinOpValue(N*M)) { }
-        Matrix(const Matrix& A,const DeepCopy): LinOp(A.nlin(),A.ncol(),FULL,2),value(new LinOpValue(A.size(),A.data())) { }
+        Matrix(const char* fname): LinOp(0,0,FULL,2),value() { load(fname); }
+        Matrix(const std::string& fname): Matrix(fname.c_str()) { }
+        Matrix(const size_t M,const size_t N): LinOp(M,N,FULL,2),value(N*M) { }
+        Matrix(const Matrix& A,const DeepCopy): LinOp(A.nlin(),A.ncol(),FULL,2),value(A.size(),A.data()) { }
+        Matrix(const Matrix& A): LinOp(A.nlin(),A.ncol(),FULL,2),value(A.value) { }
 
         explicit Matrix(const SymMatrix& A);
         explicit Matrix(const SparseMatrix& A);
 
         Matrix(const Vector& v,const size_t M,const size_t N);
 
-        void alloc_data()                       { value = new LinOpValue(size());      }
-        void reference_data(const double* vals) { value = new LinOpValue(size(),vals); }
+        void alloc_data()                       { value = LinOpValue(size());      }
+        void reference_data(const double* vals) { value = LinOpValue(size(),vals); }
 
-        /** \brief Test if Matrix is empty
-            \return true if Matrix is empty
-            \sa
-        **/
-        bool empty() const { return value->empty(); }
+        /// \brief Test if Matrix is empty
+        /// \return true if Matrix is empty
 
-        /** \brief Get Matrix size
-            \return number of values (nb lines x nb columns)
-            \sa
-        **/
+        bool empty() const { return value.empty(); }
+
+        /// \brief Get Matrix size
+        /// \return number of values (nb lines x nb columns)
+
         size_t size() const { return nlin()*ncol(); };
 
-        /** \brief Get Matrix data
-            \return pointer to Matrix values
-            \sa
-        **/
-        double* data() const { return value->data; }
+        /// \brief Get Matrix data
+        /// \return pointer to Matrix values
 
-        /** \brief Get Matrix value
-            \return value in Matrix
-            \sa
-        **/
+        double* data() const { return value.get(); }
+
+        /// \brief Get Matrix value
+        /// \return value in Matrix
+
         inline double operator()(size_t i,size_t j) const ;
 
-        /** \brief Get Matrix value
-            \return reference to value in Matrix
-            \sa
-        **/
+        /// \brief Get Matrix value
+        /// \return reference to value in Matrix
+
         inline double& operator()(size_t i,size_t j) ;
 
         Matrix submat(size_t istart, size_t isize, size_t jstart, size_t jsize) const;
@@ -147,29 +143,25 @@ namespace OpenMEEG {
         Matrix pinverse(double reltol=0) const;
         void svd(Matrix &U, SparseMatrix &S, Matrix &V, bool complete=true) const;
 
-        /** \brief Get Matrix Frobenius norm
-            \return norm value
-            \sa
-        **/
+        /// \brief Get Matrix Frobenius norm
+        /// \return norm value
+
         double frobenius_norm() const;
         double dot(const Matrix& B) const;
 
-        /** \brief Save Matrix to file (Format set using file name extension)
-            \sa
-        **/
+        /// \brief Save Matrix to file (Format set using file name extension)
+
         void save(const char *filename) const;
 
-        /** \brief Load Matrix from file (Format set using file name extension)
-            \sa
-        **/
+        /// \brief Load Matrix from file (Format set using file name extension)
+
         void load(const char *filename);
 
         void save(const std::string& s) const { save(s.c_str()); }
         void load(const std::string& s)       { load(s.c_str()); }
 
-        /** \brief Print info on Matrix
-            \sa
-        **/
+        /// \brief Print info on Matrix
+
         void info() const;
 
         friend class SparseMatrix;
@@ -178,11 +170,11 @@ namespace OpenMEEG {
 
     inline double Matrix::operator()(size_t i,size_t j) const {
         om_assert(i<nlin() && j<ncol());
-        return value->data[i+nlin()*j];
+        return value[i+nlin()*j];
     }
     inline double& Matrix::operator()(size_t i,size_t j) {
         om_assert(i<nlin() && j<ncol());
-        return value->data[i+nlin()*j];
+        return value[i+nlin()*j];
     }
     
     inline double Matrix::frobenius_norm() const {
@@ -341,7 +333,7 @@ namespace OpenMEEG {
     #endif
     }
 
-    inline Matrix Matrix::operator *(const Matrix &B) const {
+    inline Matrix Matrix::operator*(const Matrix &B) const {
         om_assert(ncol()==B.nlin());
         size_t p=ncol();
         Matrix C(nlin(),B.ncol());

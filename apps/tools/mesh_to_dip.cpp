@@ -38,42 +38,41 @@ knowledge of the CeCILL-B license and that you accept its terms.
 */
 
 #include "mesh.h"
-#include "options.h"
+#include "commandline.h"
 #include "matrix.h"
 
-using namespace std;
 using namespace OpenMEEG;
 
-int main( int argc, char **argv)
-{
+int
+main(int argc,char* argv[]) {
+
     print_version(argv[0]);
 
-    command_usage("Convert mesh file to a dipole file");
-    const char *input_filename  = command_option("-i", (const char *) NULL, "Input Mesh");
-    const char *output_filename = command_option("-o", (const char *) NULL, "Output .dip file");
+    const CommandLine cmd(argc,argv,"Convert mesh file to a dipole file");
+    const std::string& input_filename  = cmd.option("-i",std::string(),"Input Mesh");
+    const std::string& output_filename = cmd.option("-o",std::string(),"Output .dip file");
 
-    if (command_option("-h",(const char *)0,0)) return 0;
+    if (cmd.help_mode())
+        return 0;
 
-    if(!input_filename || !output_filename) {
+    if (input_filename=="" || output_filename=="") {
         std::cout << "Not enough arguments, try the -h option" << std::endl;
         return 1;
     }
 
-    Mesh m(input_filename, false);
+    Mesh m(input_filename,false);
 
-    Matrix mat(m.nb_vertices(), 6);
+    Matrix mat(m.vertices().size(),6);
 
     unsigned i = 0;
-
-    for ( Mesh::const_vertex_iterator vit = m.vertex_begin(); vit != m.vertex_end(); ++vit, ++i)
-    {
-        mat(i, 0) = (*vit)->x();
-        mat(i, 1) = (*vit)->y();
-        mat(i, 2) = (*vit)->z();
-        Normal n = m.normal(**vit);
-        mat(i, 3) = n.x();
-        mat(i, 4) = n.y();
-        mat(i, 5) = n.z();
+    for (const auto& vertex : m.vertices()) {
+        mat(i,0) = vertex->x();
+        mat(i,1) = vertex->y();
+        mat(i,2) = vertex->z();
+        const Normal& n = m.normal(*vertex);
+        mat(i,3)   = n.x();
+        mat(i,4)   = n.y();
+        mat(i++,5) = n.z();
     }
 
     mat.save(output_filename);
