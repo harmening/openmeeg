@@ -39,16 +39,39 @@ knowledge of the CeCILL-B license and that you accept its terms.
 
 #pragma once
 
-#include <cstdlib>
 #include <vector>
-#include <set>
+#include <map>
+
 #include <vect3.h>
 #include <vertex.h>
+#include <edge.h>
+#include <GeometryExceptions.H>
 
 namespace OpenMEEG {
 
+    struct TriangleIndices {
+
+        TriangleIndices() { }
+
+        TriangleIndices(const unsigned i,const unsigned j,const unsigned k) {
+            indices[0] = i;
+            indices[1] = j;
+            indices[2] = k;
+        }
+
+        TriangleIndices(const unsigned ind[3]): TriangleIndices(ind[0],ind[1],ind[2]) { }
+
+        TriangleIndices(const TriangleIndices& ind) { std::copy(&ind[0],&ind[3],&indices[0]); }
+
+        TriangleIndices& operator=(const TriangleIndices&) = default;
+
+              unsigned& operator[](const unsigned i)       { return indices[i]; }
+        const unsigned& operator[](const unsigned i) const { return indices[i]; }
+
+        unsigned indices[3];
+    };
+
     /// \brief  Triangle
-    ///
     /// Triangle class
 
     class OPENMEEG_EXPORT Triangle {
@@ -68,34 +91,13 @@ namespace OpenMEEG {
                 vertices_[i] = pts[i];
         }
 
+        /// Create a new triangle from a 3 vertex adresses.
+
+        Triangle(Vertex* p1,Vertex* p2,Vertex* p3,const unsigned index=-1): vertices_{p1,p2,p3},ind(index) { }
+
         /// Create a new triangle from a 3 vertices.
 
-        Triangle(Vertex& p1,Vertex& p2,Vertex& p3,const unsigned index=-1): ind(index) {
-            vertices_[0] = &p1;
-            vertices_[1] = &p2;
-            vertices_[2] = &p3;
-        }
-
-        /// Create a new triangle from a 3 vertex adresses.
-        
-        Triangle(Vertex* p1,Vertex* p2,Vertex* p3,const unsigned index=-1): ind(index) {
-            vertices_[0] = p1;
-            vertices_[1] = p2;
-            vertices_[2] = p3;
-        }
-        
-        /// Operators
-        // Having both [] and () doing different things is prone to errors. Also the %3 in indexing seems vety costly.
-
-              Vertex*   operator[](const unsigned& vindex)       { return vertices_[vindex%3];  } // 0 <= 'index' <= '2'
-        const Vertex*   operator[](const unsigned& vindex) const { return vertices_[vindex%3];  }
-              Vertex&   operator()(const unsigned& vindex)       { return *vertices_[vindex%3]; } // 0 <= 'index' <= '2'
-        const Vertex&   operator()(const unsigned& vindex) const { return *vertices_[vindex%3]; }
-
-              bool      operator==(const Triangle& T)     const { return (T[0]==vertices_[0])&(T[1]==vertices_[1])&(T[2]==vertices_[2]); }
-                                                 
-              Vertex&        vertex(const unsigned& vindex)       { return operator()(vindex); }
-        const Vertex&        vertex(const unsigned& vindex) const { return operator()(vindex); }
+        Triangle(Vertex& p1,Vertex& p2,Vertex& p3,const unsigned index=-1): Triangle(&p1,&p2,&p3,index) { }
 
         /// Iterators.
 
@@ -104,55 +106,34 @@ namespace OpenMEEG {
         iterator       begin()       { return iterator(vertices_);         }
         iterator       end()         { return iterator(vertices_+3);       }
 
-        //  These (s[1-3]) are ugly.. Remove ?
+        /// Operators
 
-        const Vertex&  s1()    const { return *vertices_[0]; }
-        const Vertex&  s2()    const { return *vertices_[1]; }
-        const Vertex&  s3()    const { return *vertices_[2]; }
+        bool operator==(const Triangle& T) const {
+            return (&T.vertex(0)==&vertex(0)) && (&T.vertex(1)==&vertex(1)) && (&T.vertex(2)==&vertex(2));
+        }
 
-              Vertex&  s1()          { return *vertices_[0]; }
-              Vertex&  s2()          { return *vertices_[1]; }
-              Vertex&  s3()          { return *vertices_[2]; }
+              Vertex& vertex(const unsigned& vindex)       { return *vertices_[vindex]; }
+        const Vertex& vertex(const unsigned& vindex) const { return *vertices_[vindex]; }
+
+        Edge edge(const Vertex& V) const {
+            const unsigned ind = vertex_index(V);
+            return Edge(vertex(indices[ind][0]),vertex(indices[ind][1]));
+        }
+
+        Edges edges() const {
+            return { Edge(vertex(1),vertex(2)), Edge(vertex(2),vertex(0)), Edge(vertex(0),vertex(1)) };
+        }
 
               Normal&  normal()       { return normal_; }
         const Normal&  normal() const { return normal_; }
-                                
-              double&  area()         { return area_; }
-        const double&  area()   const { return area_; }
-                                
-              unsigned& index()        { return ind; }
-        const unsigned& index()  const { return ind; }
 
-        // These two methods are ugly and used exactly once. There is probably a better way.
+        double  area() const { return area_; }
+        double& area()       { return area_; }
 
-        const Vertex& prev(const Vertex& V) const { 
-            if ( &V == vertices_[0]) {
-                return *vertices_[2];
-            } else if ( &V == vertices_[1] ) {
-                return *vertices_[0];
-            } else if ( &V == vertices_[2] ) {
-                return *vertices_[1];
-            } else {
-                static Vertex v;
-                return v;
-            }
-        }
-        const Vertex& next(const Vertex& V) const { 
-            if ( &V == vertices_[0]) {
-                return *vertices_[1];
-            } else if ( &V == vertices_[1] ) {
-                return *vertices_[2];
-            } else if ( &V == vertices_[2] ) {
-                return *vertices_[0];
-            } else {
-                static Vertex v;
-                return v;
-            }
-        }
+        unsigned& index()       { return ind; }
+        unsigned  index() const { return ind; }
 
-        Vect3 center() const {
-            return (*vertices_[0]+*vertices_[1]+*vertices_[2])/3;
-        }
+        Vect3 center() const { return (vertex(0)+vertex(1)+vertex(2))/3; }
 
         bool contains(const Vertex& p) const {
             for (unsigned i=0;i<3;++i)
@@ -161,11 +142,24 @@ namespace OpenMEEG {
             return false;
         }
 
-        /// flip two of the three vertex address
+        /// Change triangle orientation by flipping two of the vertices.
 
-        void flip() { std::swap(vertices_[0],vertices_[1]); }
+        void change_orientation() { std::swap(vertices_[0],vertices_[1]); }
+
+        /// Check for intersection with another triangle.
+
+        bool intersects(const Triangle& triangle) const;
 
     private:
+
+        unsigned vertex_index(const Vertex& V) const {
+            for (unsigned i=0;i<3;++i)
+                if (&vertex(i)==&V)
+                    return i;
+            throw UnknownVertex();
+        }
+
+        static constexpr unsigned indices[3][2] = {{1,2},{2,0},{0,1}};
 
         Vertex*  vertices_[3]; ///< &Vertex-triplet defining the triangle
         double   area_;        ///< Area
@@ -173,5 +167,8 @@ namespace OpenMEEG {
         unsigned ind;          ///< Index of the triangle
     };
 
-    typedef std::vector<Triangle> Triangles;
+    typedef std::vector<Triangle>  Triangles;
+    typedef std::vector<Triangle*> TrianglesRefs;
+
+    typedef std::map<unsigned,unsigned> IndexMap;
 }

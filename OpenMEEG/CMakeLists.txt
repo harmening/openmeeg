@@ -10,23 +10,24 @@ add_library(OpenMEEG SHARED
     src/geometry.cpp
     src/operators.cpp
     src/sensors.cpp
+    src/mesh_ios.cpp
+    src/GeometryIOs.cpp
+    src/triangle.cpp
 )
 
-set_target_properties(OpenMEEG PROPERTIES
-                      VERSION 1.1.0
-                      SOVERSION 1
-                      CLEAN_DIRECT_OUTPUT 1)
+set_target_properties(OpenMEEG PROPERTIES VERSION 1.1.0 SOVERSION 1 CLEAN_DIRECT_OUTPUT 1)
 
 target_compile_definitions(OpenMEEG PUBLIC HAVE_ISNORMAL_IN_NAMESPACE_STD)
 target_compile_definitions(OpenMEEG PUBLIC HAVE_ISNORMAL_IN_MATH_H)
 
-if(VTK_FOUND)
+if (VTK_FOUND)
     target_compile_definitions(OpenMEEG PUBLIC USE_VTK)
 endif()
 
 # OpenMP
-if (OPENMP_FOUND)
-    target_compile_definitions(OpenMEEG PUBLIC USE_OMP)
+
+if (OpenMP_FOUND)
+    target_compile_definitions(OpenMEEG PUBLIC ${OPENMP_DEFINITIONS})
     target_link_libraries(OpenMEEG PUBLIC OpenMP::OpenMP_CXX)
 else()
     message("OpenMP library not found. Use a compiler with OpenMP support for optimized running time." )

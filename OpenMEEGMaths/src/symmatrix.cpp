@@ -60,7 +60,7 @@ namespace OpenMEEG {
         value = v.value;
     }
 
-    SymMatrix::SymMatrix(const Matrix& M): LinOp(M.nlin(),M.nlin(),SYMMETRIC,2),value(new LinOpValue(size())){
+    SymMatrix::SymMatrix(const Matrix& M): LinOp(M.nlin(),M.nlin(),SYMMETRIC,2),value(size()) {
         om_assert(nlin() == M.nlin());
         for (size_t i=0; i<nlin();++i)
             for (size_t j=i; j<nlin();++j)
@@ -152,8 +152,7 @@ namespace OpenMEEG {
         return C;
     }
 
-    Matrix SymMatrix::solveLin(Matrix &RHS) const
-    {
+    Matrix SymMatrix::solveLin(Matrix &RHS) const {
     #ifdef HAVE_LAPACK
         SymMatrix A(*this,DEEP_COPY);
         // LU

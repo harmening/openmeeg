@@ -54,16 +54,16 @@ namespace OpenMEEG {
 
         friend class Vector;
 
-        utils::RCPtr<LinOpValue> value;
+        LinOpValue value;
 
     public:
 
         SymMatrix(): LinOp(0,0,SYMMETRIC,2),value() {}
 
         SymMatrix(const char* fname): LinOp(0,0,SYMMETRIC,2),value() { this->load(fname); }
-        SymMatrix(size_t N): LinOp(N,N,SYMMETRIC,2),value(new LinOpValue(size())) { }
-        SymMatrix(size_t M,size_t N): LinOp(N,N,SYMMETRIC,2),value(new LinOpValue(size())) { om_assert(N==M); }
-        SymMatrix(const SymMatrix& S,const DeepCopy): LinOp(S.nlin(),S.nlin(),SYMMETRIC,2),value(new LinOpValue(S.size(),S.data())) { }
+        SymMatrix(size_t N): LinOp(N,N,SYMMETRIC,2),value(size()) { }
+        SymMatrix(size_t M,size_t N): LinOp(N,N,SYMMETRIC,2),value(size()) { om_assert(N==M); }
+        SymMatrix(const SymMatrix& S,const DeepCopy): LinOp(S.nlin(),S.nlin(),SYMMETRIC,2),value(S.size(),S.data()) { }
 
         explicit SymMatrix(const Vector& v);
         explicit SymMatrix(const Matrix& A);
@@ -74,12 +74,12 @@ namespace OpenMEEG {
         size_t  ncol() const { return nlin(); } // SymMatrix only need num_lines
         size_t& ncol()       { return nlin(); }
 
-        void alloc_data() { value = new LinOpValue(size()); }
-        void reference_data(const double* array) { value = new LinOpValue(size(),array); }
+        void alloc_data() { value = LinOpValue(size()); }
+        void reference_data(const double* array) { value = LinOpValue(size(),array); }
 
-        bool empty() const { return value->empty(); }
+        bool empty() const { return value.empty(); }
         void set(double x) ;
-        double* data() const { return value->data; }
+        double* data() const { return value.get(); }
 
         inline double operator()(size_t i,size_t j) const;
         inline double& operator()(size_t i,size_t j) ;
@@ -90,7 +90,7 @@ namespace OpenMEEG {
         Vector    getlin(size_t i) const;
         void      setlin(size_t i, const Vector& v);
         Vector    solveLin(const Vector &B) const;
-        void      solveLin(Vector * B, int nbvect);
+        void      solveLin(Vector* B,const int nbvect);
         Matrix    solveLin(Matrix& B) const;
 
         const SymMatrix& operator=(const double d);
@@ -138,7 +138,8 @@ namespace OpenMEEG {
             return data()[j+i*(i+1)/2];
     }
 
-    //returns the solution of (this)*X = B
+    // Returns the solution of (this)*X = B
+
     inline Vector SymMatrix::solveLin(const Vector &B) const {
         SymMatrix invA(*this,DEEP_COPY);
         Vector X(B,DEEP_COPY);
@@ -160,7 +161,8 @@ namespace OpenMEEG {
     }
 
     // stores in B the solution of (this)*X = B, where B is a set of nbvect vector
-    inline void SymMatrix::solveLin(Vector * B, int nbvect) {
+
+    inline void SymMatrix::solveLin(Vector* B,const int nbvect) {
         SymMatrix invA(*this,DEEP_COPY);
 
     #ifdef HAVE_LAPACK
